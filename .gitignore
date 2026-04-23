@@ -1,0 +1,21 @@
+# 실제 변수 값 — 절대 커밋 금지
+infra/terraform.tfvars
+
+# Terraform 로컬 상태 및 캐시
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfplan
+
+# SSH 키
+*.pem
+*.key
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+*.iml
+/claudedocs/
