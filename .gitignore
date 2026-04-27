@@ -19,3 +19,4 @@ infra/terraform.tfvars
 .idea/
 *.iml
 /claudedocs/
+/.claude/
