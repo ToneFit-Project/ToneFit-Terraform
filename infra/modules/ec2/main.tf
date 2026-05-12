@@ -109,6 +109,10 @@ resource "aws_instance" "main" {
 
   user_data = file("${path.module}/user_data.sh")
 
+  lifecycle {
+    ignore_changes = [ami, user_data]
+  }
+
   root_block_device {
     volume_type           = "gp3"
     volume_size           = 30
