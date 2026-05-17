@@ -56,6 +56,16 @@ module "secrets" {
   tags        = local.tags
 }
 
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  project     = var.project
+  environment = var.environment
+  instance_id = module.ec2.instance_id
+  alarm_email = var.alarm_email
+  tags        = local.tags
+}
+
 module "frontend" {
   source = "./modules/frontend"
 

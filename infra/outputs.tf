@@ -32,3 +32,8 @@ output "cloudfront_distribution_id" {
   description = "CloudFront Distribution ID — 배포 후 캐시 무효화에 사용"
   value       = module.frontend.cloudfront_distribution_id
 }
+
+output "cloudwatch_dashboard_url" {
+  description = "CloudWatch 대시보드 URL"
+  value       = module.monitoring.dashboard_url
+}
