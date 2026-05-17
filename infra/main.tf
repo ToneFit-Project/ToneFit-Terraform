@@ -67,5 +67,6 @@ module "frontend" {
   project     = var.project
   environment = var.environment
   domain_name = var.domain_name
+  ec2_domain  = module.ec2.public_dns
   tags        = local.tags
 }

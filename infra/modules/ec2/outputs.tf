@@ -9,3 +9,7 @@ output "instance_id" {
 output "public_ip" {
   value = aws_eip.main.public_ip
 }
+
+output "public_dns" {
+  value = aws_eip.main.public_dns
+}
