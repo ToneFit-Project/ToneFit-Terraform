@@ -70,6 +70,12 @@ variable "rds_allocated_storage" {
   default = 20
 }
 
+variable "alarm_email" {
+  type        = string
+  default     = ""
+  description = "CloudWatch 알람 수신 이메일 (빈 값이면 SNS 구독 생성 안 함)"
+}
+
 variable "domain_name" {
   type    = string
   default = ""

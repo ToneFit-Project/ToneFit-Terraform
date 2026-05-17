@@ -52,3 +52,63 @@ SERVICEEOF
 
 systemctl daemon-reload
 systemctl enable tonefit
+
+# ── CloudWatch Agent ───────────────────────────────────────────
+dnf install -y amazon-cloudwatch-agent
+
+cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'CWEOF'
+{
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/nginx/access.log",
+            "log_group_name": "/tonefit/prod/nginx/access",
+            "log_stream_name": "{instance_id}",
+            "timezone": "Local"
+          },
+          {
+            "file_path": "/var/log/nginx/error.log",
+            "log_group_name": "/tonefit/prod/nginx/error",
+            "log_stream_name": "{instance_id}",
+            "timezone": "Local"
+          }
+        ]
+      },
+      "journald": {
+        "collect_list": [
+          {
+            "log_group_name": "/tonefit/prod/app",
+            "log_stream_name": "{instance_id}",
+            "units": ["tonefit.service"]
+          }
+        ]
+      }
+    }
+  },
+  "metrics": {
+    "namespace": "CWAgent",
+    "metrics_collected": {
+      "mem": {
+        "measurement": ["mem_used_percent"],
+        "metrics_collection_interval": 60
+      },
+      "disk": {
+        "measurement": ["disk_used_percent"],
+        "metrics_collection_interval": 60,
+        "resources": ["/"]
+      }
+    },
+    "append_dimensions": {
+      "InstanceId": "${aws:InstanceId}"
+    }
+  }
+}
+CWEOF
+
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 -s \
+  -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+
+systemctl enable amazon-cloudwatch-agent
