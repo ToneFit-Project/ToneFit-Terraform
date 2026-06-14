@@ -66,6 +66,13 @@ module "monitoring" {
   tags        = local.tags
 }
 
+module "github_actions" {
+  source = "./modules/github_actions"
+
+  instance_id                = module.ec2.instance_id
+  cloudfront_distribution_id = module.frontend.cloudfront_distribution_id
+}
+
 module "frontend" {
   source = "./modules/frontend"
 
