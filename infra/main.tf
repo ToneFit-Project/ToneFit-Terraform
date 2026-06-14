@@ -23,6 +23,8 @@ module "ec2" {
   instance_type    = var.ec2_instance_type
   key_pair_name    = var.ec2_key_pair_name
   allowed_ssh_cidrs = var.allowed_ssh_cidrs
+  db_host          = module.rds.endpoint
+  db_port          = module.rds.port
   tags             = local.tags
 }
 

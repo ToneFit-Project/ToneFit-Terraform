@@ -1,0 +1,103 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+  workflow_dispatch:
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check if version changed
+        id: check
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          PREV=$(git show HEAD^:package.json 2>/dev/null \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['version'])" \
+            2>/dev/null || echo "none")
+
+          echo "version=$CURRENT" >> $GITHUB_OUTPUT
+
+          if [ "$CURRENT" != "$PREV" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Version changed: $PREV → $CURRENT"
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "Version not changed ($CURRENT), skipping deploy"
+          fi
+
+  deploy:
+    needs: [ci, check-version]
+    if: needs.check-version.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          NODE_ENV: production
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_AMPLITUDE_API_KEY: ${{ secrets.VITE_AMPLITUDE_API_KEY }}
+          VITE_USE_MSW: ${{ secrets.VITE_USE_MSW }}
+          VITE_MOCK_CORRECTIONS: ${{ secrets.VITE_MOCK_CORRECTIONS }}
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # index.html은 캐시 없이, 해시 붙은 정적 파일은 1년 캐시
+      - name: Upload static assets to S3
+        run: |
+          aws s3 sync dist/ s3://${{ secrets.S3_BUCKET_NAME }} \
+            --delete \
+            --exclude "index.html" \
+            --cache-control "public, max-age=31536000, immutable"
+
+      - name: Upload index.html to S3
+        run: |
+          aws s3 cp dist/index.html s3://${{ secrets.S3_BUCKET_NAME }}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "text/html; charset=utf-8"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+      - name: Deployment summary
+        run: |
+          echo "### Deployed v${{ needs.check-version.outputs.version }} to AWS" >> $GITHUB_STEP_SUMMARY
+          echo "- S3 Bucket: ${{ secrets.S3_BUCKET_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- CloudFront: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" >> $GITHUB_STEP_SUMMARY
